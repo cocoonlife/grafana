@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/grafana/grafana/pkg/api/cloudwatch"
+	"github.com/grafana/grafana/pkg/api/sqldb"
 	"github.com/grafana/grafana/pkg/log"
 	"github.com/grafana/grafana/pkg/middleware"
 	m "github.com/grafana/grafana/pkg/models"
@@ -66,6 +67,11 @@ func (proxy *DataSourceProxy) HandleRequest() {
 		return
 	}
 
+	if proxy.ds.Type == m.DS_SQLDB {
+		sqldb.HandleRequest(proxy.ctx, proxy.ds)
+		return
+	}
+
 	if err := proxy.validateRequest(); err != nil {
 		proxy.ctx.JsonApiErr(403, err.Error(), nil)
 		return
@@ -109,6 +115,10 @@ func (proxy *DataSourceProxy) getDirector() func(req *http.Request) {
 				req.Header.Del("Authorization")
 				req.Header.Add("Authorization", util.GetBasicAuthHeader(proxy.ds.User, proxy.ds.Password))
 			}
+
+                } else if proxy.ds.Type == m.DS_SQLDB {
+			reqQueryVals.Add("db", proxy.ds.Database)
+
 		} else {
 			req.URL.Path = util.JoinUrlFragments(proxy.targetUrl.Path, proxy.proxyPath)
 		}
